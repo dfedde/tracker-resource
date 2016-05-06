@@ -1,0 +1,36 @@
+#!/usr/bin/env ruby
+require 'json'
+require 'net/http'
+
+def post(url, body = '', headers = {})
+  url = URI.parse(url)
+  req = Net::HTTP::Post.new(url.request_uri)
+  headers.each do |key, value|
+    req[key] = value
+  end
+  req.body = body
+  puts req.to_hash
+  http = Net::HTTP.new(url.host, url.port)
+  http.use_ssl = (url.scheme == "https")
+  http.request(req)
+end
+
+def send_message(message)
+  post('https://simple-receiver.cfapps.pez.pivotal.io/', message)
+end
+
+params = JSON.parse(STDIN.read)
+tracker_headers = { 'X-TrackerToken' => params['source']['tracker-token'], 'Content-Type' => 'application/json' }
+
+project_id = params['source']['project_id'].to_i
+body = { text: "story built at #{ENV['ATC_EXTERNAL_URL']}/pipelines/#{ENV['BUILD_PIPELINE_NAME']}/jobs/#{ENV['BUILD_JOB_NAME']}/builds/#{ENV['BUILD_NAME']}" }.to_json
+url = "https://www.pivotaltracker.com/services/v5/projects/#{project_id}/stories/119109447/comments"
+send_message "sending message to #{url} with body #{body} and headers #{tracker_headers}"
+send_message post(url, body, tracker_headers).body
+
+send_message 'ending OUT script'
+
+puts({
+  version: { ref: nil },
+  metadata: []
+}.to_json)

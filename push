@@ -1,0 +1,8 @@
+#!/bin/bash
+docker build -t dfedde/tracker-resource .
+docker push dfedde/tracker-resource
+cd ../concourse_temp
+yes | fly -t lite destroy-pipeline -p hello-world
+yes | fly -t lite set-pipeline -p hello-world -c hello.yml
+cd -
+curl https://simple-receiver.cfapps.pez.pivotal.io/ -XDELETE

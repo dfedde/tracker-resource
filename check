@@ -1,0 +1,52 @@
+#!/usr/bin/env ruby
+require 'json'
+require 'net/http'
+
+def post(url, body = '')
+  url = URI.parse(url)
+  req = Net::HTTP::Post.new(url.request_uri)
+  req.body = body
+  http = Net::HTTP.new(url.host, url.port)
+  http.use_ssl = (url.scheme == "https")
+  http.request(req)
+end
+
+def get(url, headers = {})
+  url = URI.parse(url)
+  req = Net::HTTP::Get.new(url.request_uri)
+  headers.each do |key, value|
+    req[key] = value
+  end
+  http = Net::HTTP.new(url.host, url.port)
+  http.use_ssl = (url.scheme == 'https')
+  http.request(req)
+end
+
+def send_message(message)
+  post('https://simple-receiver.cfapps.pez.pivotal.io/', message)
+end
+
+begin
+  params = JSON.parse(ARGF.read)
+
+  send_message 'starting CHECK script'
+  send_message "our params were: #{params}"
+
+  tracker_headers = { 'X-TrackerToken' => params['source']['tracker-token'] }
+
+  send_message "our headers are: #{tracker_headers}"
+
+  project_id = params['source']['project_id']
+  res = get("https://www.pivotaltracker.com/services/v5/projects/#{project_id}/activity?limit=1", tracker_headers)
+
+  send_message "sending GET to tracker gave us: #{res}"
+
+  send_message 'we are done checking!'
+
+  print [].to_json
+rescue => e
+  # so that errors get logged at all; mostly to play with
+  error_body = "#{e.message}\n"
+  error_body += e.backtrace.join('\n')
+  send_message "we got an error: #{error_body}"
+end
